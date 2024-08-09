@@ -1,61 +1,47 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { CreateCarDto } from './dto/create-car.dto';
 import { UpdateCarDto } from './dto/update-car.dto';
+import { Repository } from 'typeorm';
 import { Car } from './entities/car.entity';
-//aaaaaaaaaa
+import { CarDto } from './dto/car.dto';
+import { InjectRepository } from '@nestjs/typeorm';
 
 @Injectable()
 export class CarsService {
-  private readonly cars: Car[] = [];
-  private id = 1;
+  constructor(
+    @InjectRepository(Car)
+    private readonly carRepository: Repository<Car>,
+  ) {}
 
-  create(createCarDto: CreateCarDto) {
-    const newCar = {
-      id: this.id,
-      brand: createCarDto.brand,
-      model: createCarDto.model,
-      year: createCarDto.year,
-    };
-    this.id++;
-
-    this.cars.push(newCar);
-
-    console.log(this.cars);
-
-    return newCar;
+  async create(createCarDto: CreateCarDto): Promise<CreateCarDto> {
+    return await this.carRepository.save(createCarDto);
   }
 
-  findAll() {
-    return this.cars;
+  async findAll(): Promise<CarDto[]> {
+    return this.carRepository.find();
   }
 
-  findOne(id: number) {
-    const car = this.cars.find((car) => car.id === id);
+  async findOne(id: string): Promise<CarDto> {
+    const car = await this.carRepository.findOneBy({ id });
 
     if (!car) {
-      throw new NotFoundException(`Car not found`);
+      throw new NotFoundException(`Car with id ${id} not found`);
     }
 
     return car;
   }
 
-  update(id: number, updateCarDto: UpdateCarDto) {
-    const car = this.findOne(id);
-
-    car.brand = updateCarDto.brand;
-    car.model = updateCarDto.model;
-    car.year = updateCarDto.year;
-
-    return;
+  async update(id: string, updateCarDto: UpdateCarDto): Promise<CarDto> {
+    let carDTO: CarDto;
+    if (await this.findOne(id)) {
+      carDTO = { ...updateCarDto };
+      await this.carRepository.update(id, carDTO);
+    }
+    return carDTO;
   }
 
-  remove(id: number) {
-    this.findOne(id);
-
-    const carIndex = this.cars.findIndex((car) => car.id === id);
-
-    this.cars.splice(carIndex, 1);
-
-    return;
+  async remove(id: string): Promise<void> {
+    const car = await this.findOne(id);
+    await this.carRepository.delete(car);
   }
 }
